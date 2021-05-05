@@ -92,17 +92,13 @@ pub fn mouse_press_start_drag_system(
           let translation = draggable
             .hook
             .unwrap_or(global_transform.translation.truncate() - *position);
-          commands
-          .entity(entity)
-          .insert(
-            Dragged {
-              group: group.clone(),
-              translation,
-              origin: global_transform.translation.truncate(),
-              just_dropped: false,
-              just_dragged: true,
-            },
-          );
+          commands.entity(entity).insert(Dragged {
+            group: group.clone(),
+            translation,
+            origin: global_transform.translation.truncate(),
+            just_dropped: false,
+            just_dragged: true,
+          });
           break;
         }
       }
@@ -123,9 +119,7 @@ pub fn mouse_release_stop_drag_system(
       if let DropStrategy::Reset = draggable.drop_strategy {
         transform.translation = dragged.origin.extend(transform.translation.z);
       }
-      commands
-        .entity(entity)
-        .remove::<Dragged>();
+      commands.entity(entity).remove::<Dragged>();
     } else {
       dragged.just_dropped = true;
     }

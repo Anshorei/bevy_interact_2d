@@ -1,9 +1,6 @@
 use bevy::{
+  app::{Events, ManualEventReader},
   prelude::*,
-  app::{
-    ManualEventReader,
-    Events,
-  },
   render::camera::Camera,
   window::WindowId,
 };
@@ -54,6 +51,15 @@ pub struct InteractionState {
   pub last_cursor_position:      Vec2,
 }
 
+impl InteractionState {
+  pub fn get_group(&self, group: Group) -> Vec<(Entity, Vec2)> {
+    match self.ordered_interact_list_map.get(&group) {
+      Some(interactions) => interactions.clone(),
+      None => vec![],
+    }
+  }
+}
+
 /// Attach an interaction source to cameras you want to interact from
 pub struct InteractionSource {
   pub groups:        Vec<Group>,
@@ -75,11 +81,7 @@ fn interaction_state_system(
   mut interaction_state: ResMut<InteractionState>,
   cursor_moved: Res<Events<CursorMoved>>,
   windows: Res<Windows>,
-  mut sources: Query<(
-    &mut InteractionSource,
-    &GlobalTransform,
-    Option<&Camera>,
-  )>,
+  mut sources: Query<(&mut InteractionSource, &GlobalTransform, Option<&Camera>)>,
 ) {
   interaction_state.cursor_positions.clear();
 
@@ -225,9 +227,7 @@ pub fn cleanup_interaction_debug(
 ) {
   for entity in removed_interactables.iter() {
     if let Ok(debug_interactable) = interactables.get_component::<DebugInteractable>(entity) {
-      commands
-        .entity(debug_interactable.child)
-        .despawn();
+      commands.entity(debug_interactable.child).despawn();
     } else {
       warn!("Could not remove interactable debug from entity. Was already despawned?");
     }
