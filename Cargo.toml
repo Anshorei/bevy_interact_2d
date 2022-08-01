@@ -1,6 +1,6 @@
 [package]
 name = "bevy_interact_2d"
-version = "0.5.1"
+version = "0.7.0"
 authors = ["Ansho Rei <anshorei@protonmail.com>"]
 edition = "2021"
 license-file = "LICENSE"
