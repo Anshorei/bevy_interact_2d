@@ -13,7 +13,7 @@ pub mod drag;
 pub struct InteractionPlugin;
 
 impl Plugin for InteractionPlugin {
-  fn build(&self, app: &mut AppBuilder) {
+  fn build(&self, app: &mut App) {
     app
       .init_resource::<InteractionState>()
       .add_system_to_stage(CoreStage::PostUpdate, interaction_state_system.system())
@@ -25,7 +25,7 @@ impl Plugin for InteractionPlugin {
 /// plugin that will draw the bounding boxes for Interactable components.
 pub struct InteractionDebugPlugin;
 impl Plugin for InteractionDebugPlugin {
-  fn build(&self, app: &mut AppBuilder) {
+  fn build(&self, app: &mut App) {
     app
       .add_plugin(InteractionPlugin)
       .add_plugin(bevy_prototype_lyon::prelude::ShapePlugin)
@@ -61,6 +61,7 @@ impl InteractionState {
 }
 
 /// Attach an interaction source to cameras you want to interact from
+#[derive(Component)]
 pub struct InteractionSource {
   pub groups:        Vec<Group>,
   pub cursor_events: ManualEventReader<CursorMoved>,
@@ -122,6 +123,7 @@ fn interaction_state_system(
 }
 
 /// This component makes an entity interactable with the mouse cursor
+#[derive(Component)]
 pub struct Interactable {
   /// The interaction groups this interactable entity belongs to
   pub groups:       Vec<Group>,
@@ -171,7 +173,7 @@ fn interaction_system(
     }
   }
 }
-
+#[derive(Component)]
 pub struct DebugInteractable {
   pub child: Entity,
 }
@@ -207,8 +209,12 @@ fn setup_interaction_debug(
     let child = commands
       .spawn_bundle(GeometryBuilder::build_as(
         &bounding_mesh,
-        ShapeColors::new(Color::rgb_u8(red, green, blue)),
-        DrawMode::Stroke(StrokeOptions::default()),
+        //ShapeColors::new(Color::rgb_u8(red, green, blue)),
+        //DrawMode::Stroke(StrokeOptions::default()),
+        DrawMode::Outlined {
+          fill_mode:    FillMode::color(Color::rgb_u8(red, green, blue)),
+          outline_mode: StrokeMode::new(Color::BLACK, 10.0),
+        },
         Transform::default(),
       ))
       .id();
