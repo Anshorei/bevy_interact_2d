@@ -51,7 +51,6 @@ pub fn drag_system(
     }
   }
 }
-#[derive(Component)]
 pub enum DropStrategy {
   Reset,
   Leave,
