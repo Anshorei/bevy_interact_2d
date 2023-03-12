@@ -2,10 +2,11 @@ use bevy::prelude::*;
 
 use super::{Group, Interactable, InteractionState};
 
+#[derive(Component)]
 pub struct Dragged {
-  pub group:        Group,
-  pub translation:  Vec2,
-  pub origin:       Vec2,
+  pub group: Group,
+  pub translation: Vec2,
+  pub origin: Vec2,
   pub just_dropped: bool,
   pub just_dragged: bool,
 }
@@ -21,12 +22,19 @@ impl Dragged {
 
 pub struct DragPlugin;
 impl Plugin for DragPlugin {
-  fn build(&self, app: &mut AppBuilder) {
+  fn build(&self, app: &mut App) {
     app
-      .init_resource::<InteractionState>()
-      .add_system(mouse_press_start_drag_system.system())
-      .add_system(mouse_release_stop_drag_system.system())
-      .add_system(drag_system.system());
+      .add_system(mouse_press_start_drag_system)
+      .add_system(mouse_release_stop_drag_system)
+      .add_system(drag_system);
+  }
+
+  fn name(&self) -> &str {
+    std::any::type_name::<Self>()
+  }
+
+  fn is_unique(&self) -> bool {
+    true
   }
 }
 
@@ -51,26 +59,26 @@ pub fn drag_system(
     }
   }
 }
-
+#[derive(Component)]
 pub enum DropStrategy {
   Reset,
   Leave,
 }
-
+#[derive(Component)]
 pub struct Draggable {
   // Where the entity is hooked onto the cursor while dragging.
   // If no hook is given, the entity will be pinned to the cursor
   // as it was when the drag was started.
-  pub hook:          Option<Vec2>,
-  pub groups:        Vec<Group>,
+  pub hook: Option<Vec2>,
+  pub groups: Vec<Group>,
   pub drop_strategy: DropStrategy,
 }
 
 impl Default for Draggable {
   fn default() -> Self {
     Self {
-      hook:          None,
-      groups:        vec![Group::default()],
+      hook: None,
+      groups: vec![Group::default()],
       drop_strategy: DropStrategy::Leave,
     }
   }
@@ -79,7 +87,7 @@ impl Default for Draggable {
 pub fn mouse_press_start_drag_system(
   interaction_state: Res<InteractionState>,
   mouse_button_input: Res<Input<MouseButton>>,
-  draggables: Query<(Entity, &Draggable, &GlobalTransform), With<Interactable>>,
+  draggables: Query<(Entity, &Draggable, &Transform), With<Interactable>>,
   mut commands: Commands,
 ) {
   if !mouse_button_input.just_pressed(MouseButton::Left) {
