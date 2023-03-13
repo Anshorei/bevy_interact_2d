@@ -66,7 +66,7 @@ impl Default for InteractionSource {
 fn interaction_state_system(
   mut interaction_state: ResMut<InteractionState>,
   cursor_moved: Res<Events<CursorMoved>>,
-  mut windows: Query<(Entity, &mut Window)>,
+  windows: Query<(Entity, &mut Window)>,
   mut sources: Query<(&mut InteractionSource, &GlobalTransform, Option<&Camera>)>,
 ) {
   interaction_state.cursor_positions.clear();
@@ -138,7 +138,14 @@ fn setup_interaction_debug(
     };
 
     let child = commands
-      .spawn(GeometryBuilder::build_as(&bounding_mesh))
+      //.spawn(GeometryBuilder::build_as(&bounding_mesh))
+      .spawn((
+        ShapeBundle {
+          path: GeometryBuilder::build_as(&bounding_mesh),
+          ..default()
+        },
+        Fill::color(Color::rgb_u8(red, green, blue)),
+      ))
       .id();
 
     commands
