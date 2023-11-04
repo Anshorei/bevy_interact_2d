@@ -26,7 +26,7 @@ impl Plugin for InteractionPlugin {
     };
 
     app
-      .insert_resource::<InteractionState>(interaction_state)
+      .insert_resource(interaction_state)
       .add_systems(PostUpdate, interaction_state_system)
       .add_systems(PostUpdate, interaction_system);
   }
@@ -80,7 +80,7 @@ fn interaction_state_system(
   interaction_state.cursor_positions.clear();
 
   for (mut interact_source, global_transform, camera) in sources.iter_mut() {
-    if let Some(evt) = interact_source.cursor_events.read(&cursor_moved).last() {
+    if let Some(evt) = interact_source.cursor_events.iter(&cursor_moved).last() {
       interaction_state.last_window_id = Some(evt.window);
       interaction_state.last_cursor_position = evt.position;
     }
