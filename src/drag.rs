@@ -24,9 +24,9 @@ pub struct DragPlugin;
 impl Plugin for DragPlugin {
   fn build(&self, app: &mut App) {
     app
-      .add_system(mouse_press_start_drag_system)
-      .add_system(mouse_release_stop_drag_system)
-      .add_system(drag_system);
+      .add_systems(Update, mouse_press_start_drag_system)
+      .add_systems(Update, mouse_release_stop_drag_system)
+      .add_systems(Update, drag_system);
   }
 
   fn name(&self) -> &str {

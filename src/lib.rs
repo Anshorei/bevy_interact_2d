@@ -1,4 +1,13 @@
-use bevy::{ecs::event::ManualEventReader, prelude::*, render::camera::Camera};
+use bevy::{
+  ecs::event::ManualEventReader,
+  prelude::*,
+  render::{
+    camera::Camera,
+    mesh::{Indices, VertexAttributeValues},
+  },
+};
+use nalgebra::{OPoint, Vector2};
+use parry2d::shape::SharedShape;
 use std::collections::HashMap;
 
 pub mod drag;
@@ -18,26 +27,25 @@ impl Plugin for InteractionPlugin {
 
     app
       .insert_resource(interaction_state)
-      .add_system(interaction_state_system.in_base_set(CoreSet::PostUpdate))
-      .add_system(interaction_system.in_base_set(CoreSet::PostUpdate));
+      .add_systems(PostUpdate, interaction_state_system)
+      .add_systems(PostUpdate, interaction_system);
   }
 }
 
-/// The interaction debug plugin is a drop-in replacement for the interaction
-/// plugin that will draw the bounding boxes for Interactable components.
-pub struct InteractionDebugPlugin;
-impl Plugin for InteractionDebugPlugin {
-  fn build(&self, app: &mut App) {
-    app
-      .add_plugin(InteractionPlugin)
-      .add_plugin(bevy_prototype_lyon::prelude::ShapePlugin)
-      // TODO: what is the correct stage for this?
-      // POST_UPDATE doesn't work because then lyon won't draw the bounding mesh
-      // check whether that is done in UPDATE or POST_UPDATE
-      .add_system(setup_interaction_debug.in_base_set(CoreSet::PreUpdate))
-      .add_system(cleanup_interaction_debug.in_base_set(CoreSet::PostUpdate));
-  }
-}
+// /// The interaction debug plugin is a drop-in replacement for the interaction
+// /// plugin that will draw the bounding boxes for Interactable components.
+// pub struct InteractionDebugPlugin;
+// impl Plugin for InteractionDebugPlugin {
+//   fn build(&self, app: &mut App) {
+//     app
+//       .add_plugins(InteractionPlugin)
+//       // TODO: what is the correct stage for this?
+//       // POST_UPDATE doesn't work because then lyon won't draw the bounding mesh
+//       // check whether that is done in UPDATE or POST_UPDATE
+//       .add_systems(PreUpdate, setup_interaction_debug)
+//       .add_systems(PostUpdate, cleanup_interaction_debug);
+//   }
+// }
 
 /// Using groups it is easy to have systems only interact with
 /// draggables in a specific group.
@@ -72,7 +80,7 @@ fn interaction_state_system(
   interaction_state.cursor_positions.clear();
 
   for (mut interact_source, global_transform, camera) in sources.iter_mut() {
-    if let Some(evt) = interact_source.cursor_events.iter(&cursor_moved).last() {
+    if let Some(evt) = interact_source.cursor_events.read(&cursor_moved).last() {
       interaction_state.last_window_id = Some(evt.window);
       interaction_state.last_cursor_position = evt.position;
     }
@@ -81,7 +89,7 @@ fn interaction_state_system(
       None => panic!("Interacting without camera not supported."),
     };
     if interaction_state.last_window_id.is_some() {
-      if let Ok((i, window)) = windows.get(interaction_state.last_window_id.unwrap()) {
+      if let Ok((_i, window)) = windows.get(interaction_state.last_window_id.unwrap()) {
         let screen_size = Vec2::from([window.width() as f32, window.height() as f32]);
         let cursor_position = interaction_state.last_cursor_position;
         let cursor_position_ndc = (cursor_position / screen_size) * 2.0 - Vec2::from([1.0, 1.0]);
@@ -109,65 +117,63 @@ fn interaction_state_system(
   }
 }
 
-fn setup_interaction_debug(
-  mut commands: Commands,
-  interactables: Query<(Entity, &Interactable), Added<Interactable>>,
-) {
-  use bevy_prototype_lyon::prelude::*;
+// fn setup_interaction_debug(
+//   mut commands: Commands,
+//   interactables: Query<(Entity, &Interactable), Added<Interactable>>,
+// ) {
+//   for (entity, interactable) in interactables.iter() {
+//     let group_sum = interactable.groups.iter().fold(0, |acc, Group(n)| acc + n);
+//     let (red, green) = match group_sum {
+//       0 => (0, 0),
+//       1 => (255, 0),
+//       2 => (0, 255),
+//       _ => (0, 0),
+//     };
+//     let blue = match interactable.groups.is_empty() {
+//       true => 0,
+//       false => 255,
+//     };
+//     let bounding_mesh = shapes::Polygon {
+//       points: vec![
+//         Vec2::new(interactable.bounding_box.0.x, interactable.bounding_box.0.y),
+//         Vec2::new(interactable.bounding_box.1.x, interactable.bounding_box.0.y),
+//         Vec2::new(interactable.bounding_box.1.x, interactable.bounding_box.1.y),
+//         Vec2::new(interactable.bounding_box.0.x, interactable.bounding_box.1.y),
+//       ],
+//       closed: true,
+//     };
 
-  for (entity, interactable) in interactables.iter() {
-    let group_sum = interactable.groups.iter().fold(0, |acc, Group(n)| acc + n);
-    let (red, green) = match group_sum {
-      0 => (0, 0),
-      1 => (255, 0),
-      2 => (0, 255),
-      _ => (0, 0),
-    };
-    let blue = match interactable.groups.is_empty() {
-      true => 0,
-      false => 255,
-    };
-    let bounding_mesh = shapes::Polygon {
-      points: vec![
-        Vec2::new(interactable.bounding_box.0.x, interactable.bounding_box.0.y),
-        Vec2::new(interactable.bounding_box.1.x, interactable.bounding_box.0.y),
-        Vec2::new(interactable.bounding_box.1.x, interactable.bounding_box.1.y),
-        Vec2::new(interactable.bounding_box.0.x, interactable.bounding_box.1.y),
-      ],
-      closed: true,
-    };
+//     let child = commands
+//       //.spawn(GeometryBuilder::build_as(&bounding_mesh))
+//       .spawn((
+//         ShapeBundle {
+//           path: GeometryBuilder::build_as(&bounding_mesh),
+//           ..default()
+//         },
+//         Fill::color(Color::rgb_u8(red, green, blue)),
+//       ))
+//       .id();
 
-    let child = commands
-      //.spawn(GeometryBuilder::build_as(&bounding_mesh))
-      .spawn((
-        ShapeBundle {
-          path: GeometryBuilder::build_as(&bounding_mesh),
-          ..default()
-        },
-        Fill::color(Color::rgb_u8(red, green, blue)),
-      ))
-      .id();
+//     commands
+//       .entity(entity)
+//       .push_children(&vec![child])
+//       .insert(DebugInteractable { child });
+//   }
+// }
 
-    commands
-      .entity(entity)
-      .push_children(&vec![child])
-      .insert(DebugInteractable { child });
-  }
-}
-
-fn cleanup_interaction_debug(
-  mut commands: Commands,
-  mut removed_interactables: RemovedComponents<Interactable>,
-  interactables: Query<(Entity, &DebugInteractable)>,
-) {
-  for entity in removed_interactables.iter() {
-    if let Ok(debug_interactable) = interactables.get_component::<DebugInteractable>(entity) {
-      commands.entity(debug_interactable.child).despawn();
-    } else {
-      warn!("Could not remove interactable debug from entity. Was already despawned?");
-    }
-  }
-}
+// fn cleanup_interaction_debug(
+//   mut commands: Commands,
+//   mut removed_interactables: RemovedComponents<Interactable>,
+//   interactables: Query<(Entity, &DebugInteractable)>,
+// ) {
+//   for entity in removed_interactables.iter() {
+//     if let Ok(debug_interactable) = interactables.get_component::<DebugInteractable>(entity) {
+//       commands.entity(debug_interactable.child).despawn();
+//     } else {
+//       warn!("Could not remove interactable debug from entity. Was already despawned?");
+//     }
+//   }
+// }
 
 /// This component makes an entity interactable with the mouse cursor
 #[derive(Component)]
@@ -175,22 +181,62 @@ pub struct Interactable {
   /// The interaction groups this interactable entity belongs to
   pub groups: Vec<Group>,
   /// The interaction area for the interactable entity
-  pub bounding_box: (Vec2, Vec2),
+  pub bounding_mesh: Handle<Mesh>,
 }
 
-impl Default for Interactable {
-  fn default() -> Self {
+// impl Default for Interactable {
+//   fn default() -> Self {
+//     Self {
+//       groups: vec![Group::default()],
+//       bounding_mesh: Mesh2dHandle::default(),
+
+//     }
+//   }
+// }
+
+impl Interactable {
+  pub fn new(groups: Vec<Group>, bounding_mesh: Handle<Mesh>) -> Self {
     Self {
-      groups: vec![Group::default()],
-      bounding_box: (Vec2::default(), Vec2::default()),
+      groups,
+      bounding_mesh,
     }
   }
+}
+
+// 2d
+type VerticesIndices = (Vec<nalgebra::Point2<f32>>, Vec<[u32; 2]>);
+
+// 2d
+fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
+  let vertices = mesh.attribute(Mesh::ATTRIBUTE_POSITION)?;
+  let indices = mesh.indices()?;
+
+  let vtx: Vec<_> = match vertices {
+    VertexAttributeValues::Float32(vtx) => {
+      Some(vtx.chunks(2).map(|v| [v[0], v[1]].into()).collect())
+    }
+    VertexAttributeValues::Float32x2(vtx) => {
+      Some(vtx.iter().map(|v| [v[0], v[1]].into()).collect())
+    }
+    _ => None,
+  }?;
+
+  let idx = match indices {
+    Indices::U16(idx) => idx
+      .chunks_exact(2)
+      .map(|i| [i[0] as u32, i[1] as u32])
+      .collect(),
+    Indices::U32(idx) => idx.chunks_exact(2).map(|i| [i[0], i[1]]).collect(),
+  };
+
+  Some((vtx, idx))
 }
 
 /// This system checks what for what groups an entity is currently interacted with
 fn interaction_system(
   mut interaction_state: ResMut<InteractionState>,
   interactables: Query<(Entity, &Transform, &Interactable)>,
+  meshes: ResMut<Assets<Mesh>>,
 ) {
   interaction_state.ordered_interact_list_map.clear();
 
@@ -200,14 +246,18 @@ fn interaction_system(
       if !interactable.groups.contains(&group) {
         continue;
       }
-      // TODO: use bounding_mesh
       let relative_cursor_position = (cursor_position - global_transform.translation.truncate())
         / global_transform.scale.truncate();
-      if (interactable.bounding_box.0.x..interactable.bounding_box.1.x)
-        .contains(&relative_cursor_position.x)
-        && (interactable.bounding_box.0.y..interactable.bounding_box.1.y)
-          .contains(&relative_cursor_position.y)
-      {
+
+      let mesh = meshes.get(&interactable.bounding_mesh).unwrap();
+
+      let (vertices, indices) = extract_mesh_vertices_indices(mesh).unwrap();
+
+      let shape = SharedShape::convex_decomposition(&vertices, &indices);
+
+      if shape.contains_local_point(&OPoint {
+        coords: Vector2::new(relative_cursor_position.x, relative_cursor_position.y),
+      }) {
         let interaction = (entity, cursor_position);
         if let Some(list) = interaction_state.ordered_interact_list_map.get_mut(&group) {
           list.push(interaction)
