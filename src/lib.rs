@@ -26,7 +26,7 @@ impl Plugin for InteractionPlugin {
     };
 
     app
-      .insert_resource(interaction_state)
+      .insert_resource::<InteractionState>(interaction_state)
       .add_systems(PostUpdate, interaction_state_system)
       .add_systems(PostUpdate, interaction_system);
   }
