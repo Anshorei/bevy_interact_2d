@@ -249,22 +249,22 @@ fn interaction_system(
       let relative_cursor_position = (cursor_position - global_transform.translation.truncate())
         / global_transform.scale.truncate();
 
-      let mesh = meshes.get(&interactable.bounding_mesh).unwrap();
+      if let Some(mesh) = meshes.get(&interactable.bounding_mesh) {
+        if let Some((vertices, indices)) = extract_mesh_vertices_indices(mesh) {
+          let shape = SharedShape::convex_decomposition(&vertices, &indices);
 
-      let (vertices, indices) = extract_mesh_vertices_indices(mesh).unwrap();
-
-      let shape = SharedShape::convex_decomposition(&vertices, &indices);
-
-      if shape.contains_local_point(&OPoint {
-        coords: Vector2::new(relative_cursor_position.x, relative_cursor_position.y),
-      }) {
-        let interaction = (entity, cursor_position);
-        if let Some(list) = interaction_state.ordered_interact_list_map.get_mut(&group) {
-          list.push(interaction)
-        } else {
-          interaction_state
-            .ordered_interact_list_map
-            .insert(group, vec![interaction]);
+          if shape.contains_local_point(&OPoint {
+            coords: Vector2::new(relative_cursor_position.x, relative_cursor_position.y),
+          }) {
+            let interaction = (entity, cursor_position);
+            if let Some(list) = interaction_state.ordered_interact_list_map.get_mut(&group) {
+              list.push(interaction)
+            } else {
+              interaction_state
+                .ordered_interact_list_map
+                .insert(group, vec![interaction]);
+            }
+          }
         }
       }
     }
