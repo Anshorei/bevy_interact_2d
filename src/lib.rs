@@ -76,7 +76,7 @@ fn interaction_state_system(
 ) {
   interaction_state.cursor_positions.clear();
 
-  for (mut interact_source, global_transform, camera) in sources.iter_mut() {
+  for (interact_source, global_transform, camera) in sources.iter_mut() {
     if let Some(evt) = cursor_moved.iter().last() {
       interaction_state.last_window_id = Some(evt.window);
       interaction_state.last_cursor_position = evt.position;
@@ -204,11 +204,11 @@ impl Interactable {
 type VerticesIndices = (Vec<nalgebra::Point2<f32>>, Vec<[u32; 2]>);
 
 // 2d
-fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
+fn extract_mesh_vertices_indices(mesh: &Mesh, transform: &Transform) -> Option<VerticesIndices> {
   let vertices = mesh.attribute(Mesh::ATTRIBUTE_POSITION)?;
   let indices = mesh.indices()?;
 
-  let vtx: Vec<_> = match vertices {
+  let mut vtx: Vec<nalgebra::Point2<f32>> = match vertices {
     VertexAttributeValues::Float32(vtx) => {
       Some(vtx.chunks(2).map(|v| [v[0], v[1]].into()).collect())
     }
@@ -226,6 +226,15 @@ fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<VerticesIndices> {
     Indices::U32(idx) => idx.chunks_exact(2).map(|i| [i[0], i[1]]).collect(),
   };
 
+  for v in vtx.iter_mut() {
+    let temp = transform.transform_point(Vec3 {
+      x: v.x,
+      y: v.y,
+      z: 0.0,
+    });
+    *v = nalgebra::Point2::new(temp.x, temp.y);
+  }
+
   Some((vtx, idx))
 }
 
@@ -237,17 +246,17 @@ fn interaction_system(
 ) {
   interaction_state.ordered_interact_list_map.clear();
 
-  for (entity, global_transform, interactable) in interactables.iter() {
+  for (entity, transform, interactable) in interactables.iter() {
     let cursor_positions = interaction_state.cursor_positions.clone();
     for (group, cursor_position) in cursor_positions {
       if !interactable.groups.contains(&group) {
         continue;
       }
-      let relative_cursor_position = (cursor_position - global_transform.translation.truncate())
-        / global_transform.scale.truncate();
+      let relative_cursor_position = cursor_position; // - global_transform.translation.truncate())
+                                                      // / global_transform.scale.truncate();
 
       if let Some(mesh) = meshes.get(&interactable.bounding_mesh) {
-        if let Some((vertices, indices)) = extract_mesh_vertices_indices(mesh) {
+        if let Some((vertices, indices)) = extract_mesh_vertices_indices(mesh, &transform) {
           let shape = SharedShape::convex_decomposition(&vertices, &indices);
 
           if shape.contains_local_point(&OPoint {
