@@ -241,22 +241,23 @@ fn extract_mesh_vertices_indices(mesh: &Mesh, transform: &Transform) -> Option<V
 /// This system checks what for what groups an entity is currently interacted with
 fn interaction_system(
   mut interaction_state: ResMut<InteractionState>,
-  interactables: Query<(Entity, &Transform, &Interactable)>,
+  interactables: Query<(Entity, &GlobalTransform, &Interactable)>,
   meshes: ResMut<Assets<Mesh>>,
 ) {
   interaction_state.ordered_interact_list_map.clear();
 
-  for (entity, transform, interactable) in interactables.iter() {
+  for (entity, global_transform, interactable) in interactables.iter() {
     let cursor_positions = interaction_state.cursor_positions.clone();
     for (group, cursor_position) in cursor_positions {
       if !interactable.groups.contains(&group) {
         continue;
       }
-      let relative_cursor_position = cursor_position; // - global_transform.translation.truncate())
-                                                      // / global_transform.scale.truncate();
+      let relative_cursor_position = cursor_position - global_transform.translation().truncate();
 
       if let Some(mesh) = meshes.get(&interactable.bounding_mesh) {
-        if let Some((vertices, indices)) = extract_mesh_vertices_indices(mesh, &transform) {
+        if let Some((vertices, indices)) =
+          extract_mesh_vertices_indices(mesh, &global_transform.compute_transform())
+        {
           let shape = SharedShape::convex_decomposition(&vertices, &indices);
 
           if shape.contains_local_point(&OPoint {
