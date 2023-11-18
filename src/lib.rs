@@ -77,7 +77,7 @@ fn interaction_state_system(
   interaction_state.cursor_positions.clear();
 
   for (interact_source, global_transform, camera) in sources.iter_mut() {
-    if let Some(evt) = cursor_moved.iter().last() {
+    if let Some(evt) = cursor_moved.read().last() {
       interaction_state.last_window_id = Some(evt.window);
       interaction_state.last_cursor_position = evt.position;
     }
