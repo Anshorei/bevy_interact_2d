@@ -1,4 +1,4 @@
-# Bevy Interact 2D
+# Bevy Interact 2D (updated to bevy 0.10)
 
 **Work in progress**
 
